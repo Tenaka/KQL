@@ -1,0 +1,8 @@
+DeviceEvents
+| where ActionType == "DeviceInventory" // Filter for device inventory events
+| extend Software = parse_json(tostring(AdditionalFields)).Software // Extract software information from AdditionalFields
+| mv-expand Software // Expand the Software array to individual records
+| extend SoftwareName = tostring(Software.ProductName) // Extract Software Name
+| extend SoftwareVersion = tostring(Software.ProductVersion) // Extract Software Version
+| where SoftwareName == "Microsoft Intune Management Extension" // Filter for the Intune agent
+| project Timestamp, DeviceName, SoftwareName, SoftwareVersion // Select relevant columns
