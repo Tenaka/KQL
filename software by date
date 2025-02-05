@@ -1,8 +1,19 @@
 DeviceEvents
-| where ActionType == "DeviceInventory" // Filter for device inventory events
-| extend Software = parse_json(tostring(AdditionalFields)).Software // Extract software information from AdditionalFields
-| mv-expand Software // Expand the Software array to individual records
-| extend SoftwareName = tostring(Software.ProductName) // Extract Software Name
-| extend SoftwareVersion = tostring(Software.ProductVersion) // Extract Software Version
-| where SoftwareName == "Microsoft Intune Management Extension" // Filter for the Intune agent
-| project Timestamp, DeviceName, SoftwareName, SoftwareVersion // Select relevant columns
+| where ActionType == "ProcessCreate" // Narrow down to process creation events
+| where InitiatingProcessFileName =~ "powershell.exe" // Focus on PowerShell executions (common for Intune)
+   or InitiatingProcessFileName =~ "msiexec.exe" // Include MSI Installer for Adobe installations
+   or InitiatingProcessFileName =~ "cmd.exe" // Include Command Prompt executions for potential installers
+| where (
+    ((FolderPath has "C:\\Program Files (x86)\\Adobe" or FolderPath has "C:\\Program Files\\Adobe") and FileName =~ "Acrobat.exe") // Adobe Acrobat
+    or ((FolderPath has "C:\\Program Files (x86)\\Microsoft\\Intune Management Extension" or FolderPath has "C:\\Program Files\\Microsoft\\Intune Management Extension") and FileName =~ "Microsoft.Management.Services.IntuneManagementExtension.exe") // Intune Agent
+)
+| extend AdobeVersion = case(
+    FolderPath has "C:\\Program Files (x86)\\Adobe" or FolderPath has "C:\\Program Files\\Adobe", tostring(FileDescription), // Extract version info (may need adjustments)
+    "" // Default if not Adobe
+)
+| extend IntuneAgentVersion = case(
+    FolderPath has "C:\\Program Files (x86)\\Microsoft\\Intune Management Extension" or FolderPath has "C:\\Program Files\\Microsoft\\Intune Management Extension", tostring(FileVersion), // Extract version info (may need adjustments)
+    "" // Default if not Intune Agent
+)
+| project Timestamp, DeviceName, InitiatingProcessFileName, FolderPath, FileName, AdobeVersion, IntuneAgentVersion
+| summarize arg_max(Timestamp, *) by DeviceName // Get the most recent event for each device
