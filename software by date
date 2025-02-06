@@ -1,9 +1,1 @@
-let softwareData = 
-    DeviceTvmSoftwareInventory
-    | where softwareName == "notepad"
-    | summarize softwareVersion = make_list(softwareVersion) by deviceName, softwareName;
-AADSignInEventsBeta
-| where isnotempty(DeviceId)
-| project DeviceId, UserPrincipalName, AppDisplayName, Timestamp
-| join kind=inner (softwareData) on $left.DeviceId == $right.deviceName
-| order by softwareName asc, softwareVersion asc
+
