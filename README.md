@@ -1,3 +1,1 @@
-# KQL
 
-some test text
